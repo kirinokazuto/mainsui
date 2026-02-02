@@ -34,6 +34,8 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_  HINSTANCE hPrevInstance,
 	const int MAP_WIDTH = 15;
 	const int MAP_HEIGHT = 12;
 
+	int fr = 30;
+
 	// タイルサイズを決める（32×32なら画面に収まる）
 	const int TILE_W = 32;
 	const int TILE_H = 32;
@@ -75,6 +77,8 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_  HINSTANCE hPrevInstance,
 	int mouseX, mouseY;
 	GetMousePoint(&mouseX, &mouseY);
 
+	int flagMap[MAP_HEIGHT][MAP_WIDTH] = { 0 }; // 旗がある:1 ない:0
+
 	int maemouse = 0;
 
 	//画像の分割読み込み
@@ -105,22 +109,59 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_  HINSTANCE hPrevInstance,
 		int aa = GetMouseInput();//入力はフレームの頭で1回だけ取得
 
 		// 左クリックでタイルを切り替える例（伏せ→空白）
-		if (((aa & MOUSE_INPUT_LEFT)) && !(maemouse & MOUSE_INPUT_LEFT))
+		if ((aa & MOUSE_INPUT_LEFT) && !(maemouse & MOUSE_INPUT_LEFT))
 		{
+			int tx = (mouseX - startTileX) / TILE_W;
+			int ty = (mouseY - startTileY) / TILE_H;
 
+			if (tx >= 0 && tx < MAP_WIDTH && ty >= 0 && ty < MAP_HEIGHT)
+			{
+				// ★ 旗があるマスは開けない
+				if (flagMap[ty][tx] == 1)
+				{
+					// 何もしない（開かない）
+				}
+				else
+				{
+					// 伏せ(1)だけ開ける
+					if (tempMap[ty][tx] == 1)
+					{
+						tempMap[ty][tx] = 2;
+					}
+				}
+			}
+		}
+
+
+		// 右クリックで旗を置く（開いたマスには置けない）
+		if (((aa & MOUSE_INPUT_RIGHT)) && !(maemouse & MOUSE_INPUT_RIGHT))
+		{
 			// マップ内のクリックならタイル座標に変換
 			int tx = (mouseX - startTileX) / TILE_W;
 			int ty = (mouseY - startTileY) / TILE_H;
 
-			if (tx >= 0 && tx < MAP_WIDTH && ty >= 0 && ty < MAP_HEIGHT) 
+			if (tx >= 0 && tx < MAP_WIDTH && ty >= 0 && ty < MAP_HEIGHT)
 			{
+				// ★ 伏せマス(1)のときだけ旗を置ける
 				if (tempMap[ty][tx] == 1)
 				{
-					//1～２に変更
-					tempMap[ty][tx] = 2; 
+					// 旗をトグル（置く/消す）
+					flagMap[ty][tx] = 1 - flagMap[ty][tx];
+
+					// ★ 置いたら fr--、消したら fr++
+					if (flagMap[ty][tx] == 1)
+					{
+						fr -= 1;   // 旗を置いた
+					}
+					else
+					{
+						fr += 1;   // 旗を消した
+					}
 				}
+				// else: 開いたマスには何もしない
 			}
 		}
+
 
 		// マップ描画：tempMap の値（= タイルID）に応じてタイルを並べる
 		for (int ty = 0; ty < MAP_HEIGHT; ++ty)
@@ -138,13 +179,27 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_  HINSTANCE hPrevInstance,
 				int drawY = startTileY + ty * TILE_H;
 
 				DrawGraph(drawX, drawY, tileImg[id], TRUE);
+
+				//旗の描画
+				if (flagMap[ty][tx] == 1)
+				{
+					int drawX = startTileX + tx * TILE_W;
+					int drawY = startTileY + ty * TILE_H;
+					DrawGraph(drawX, drawY, gh_frag, TRUE);
+				}
 			}
 		}
 
 		DrawGraph(0, 50, tileImg[1], TRUE);
 		//画像の描画(位置X、位置Y、グラフィックハンドル、透明度の有効無効)
 
-		DrawGraph(3, 17, gh_frag, TRUE);;
+		DrawGraph(4, 17, gh_frag, TRUE);
+
+		SetFontSize(26);
+		DrawFormatString(40, 21, GetColor(255, 255, 255), "%d", fr);
+		SetFontSize(16); // ほかの文字に影響出るので戻す
+
+		//DrawString(45, 26, "fr", GetColor(255, 255, 255));
 
 		//--------------------------------------------------------------------
 
